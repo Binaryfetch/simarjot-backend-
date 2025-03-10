@@ -1,0 +1,163 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "./sportsApp.css";
+
+const collegeName = "GGI Khanna";
+
+function SportsApp() {
+  const [athleteData, setAthleteData] = useState({});
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const navigate = useNavigate();
+
+  const events = [
+    "100m Race", "200m Race", "400m Race", "800m Race",
+    "1500m Race", "5000m Race", "10000m Race", "110m Hurdles",
+    "400m Hurdles", "Long Jump", "Triple Jump", "High Jump",
+    "Shot Put", "Discuss Throw", "Javelin Throw", "Hammer Throw",
+    "4x100m Relay", "4x400m Relay"
+  ];
+
+  const handleLogout = async () => {
+    await fetch("http://localhost:5000/logout", { credentials: "include" });
+    navigate("/");
+  };
+
+  const handleInputChange = (eventName, studentKey, field, value) => {
+    setAthleteData((prev) => {
+      const newData = { ...prev };
+      if (!newData[eventName]) newData[eventName] = {};
+      newData[eventName][studentKey] = { ...newData[eventName][studentKey], [field]: value };
+      return newData;
+    });
+  };
+
+  const handleSubmit = async () => {
+    const currentEvent = events[currentEventIndex];
+
+    if (!athleteData[currentEvent]?.student1?.urn) {
+      alert(`Student 1 must be entered for ${currentEvent}`);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("event", currentEvent);
+    formData.append("student1Name", athleteData[currentEvent]?.student1?.name || "");
+    formData.append("student1URN", athleteData[currentEvent]?.student1?.urn);
+    if (athleteData[currentEvent]?.student1?.idCard) {
+      formData.append("student1Image", athleteData[currentEvent]?.student1?.idCard);
+    }
+
+    if (athleteData[currentEvent]?.student2?.urn) {
+      formData.append("student2Name", athleteData[currentEvent]?.student2?.name || "");
+      formData.append("student2URN", athleteData[currentEvent]?.student2?.urn);
+      if (athleteData[currentEvent]?.student2?.idCard) {
+        formData.append("student2Image", athleteData[currentEvent]?.student2?.idCard);
+      }
+    }
+
+    try {
+      const response = await fetch("http://localhost:5000/student/register", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      const text = await response.text();
+      try {
+        const jsonResponse = JSON.parse(text);
+        alert(jsonResponse.message || "Registration Successful!");
+      } catch {
+        alert(text);
+      }
+
+      if (currentEventIndex < events.length - 1) {
+        setCurrentEventIndex((prevIndex) => prevIndex + 1);
+      } else {
+        setIsSubmitted(true);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Server error.");
+    }
+  };
+
+  return (
+    <div className="sports-app">
+      <nav className="navbar">
+        <div className="college-name">{collegeName}</div>
+        <div className="nav-buttons">
+          <button className="support-btn">Support</button>
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </div>
+      </nav>
+
+      <div className="background">
+        <h2 className="welcome-text">Welcome to Sports Meet, {collegeName}</h2>
+      </div>
+
+      <div className="events-container">
+        {!isSubmitted ? (
+          <>
+            <h3 className="event-title">Register for {events[currentEventIndex]}</h3>
+            <div className="athlete-form">
+              <h4>Student 1</h4>
+              <input
+                type="text"
+                placeholder="Name"
+                value={athleteData[events[currentEventIndex]]?.student1?.name || ""}
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student1", "name", e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="URN"
+                value={athleteData[events[currentEventIndex]]?.student1?.urn || ""}
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student1", "urn", e.target.value)}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student1", "idCard", e.target.files[0])}
+              />
+
+              <h4>Student 2 (Optional)</h4>
+              <input
+                type="text"
+                placeholder="Name"
+                value={athleteData[events[currentEventIndex]]?.student2?.name || ""}
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student2", "name", e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="URN"
+                value={athleteData[events[currentEventIndex]]?.student2?.urn || ""}
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student2", "urn", e.target.value)}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleInputChange(events[currentEventIndex], "student2", "idCard", e.target.files[0])}
+              />
+            </div>
+
+            <div className="submit-container">
+              <button className="submit-btn" onClick={handleSubmit}>
+                Submit & Next
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="thank-you-message">
+            <h2>Thank you for registering!</h2>
+            <p>Your sports event registration is complete.</p>
+            <button className="logout-btn" onClick={() => navigate("/")}>
+              Go to Home
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default SportsApp;
